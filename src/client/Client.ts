@@ -5,6 +5,7 @@
 
 import { contours } from 'd3-contour';
 import * as calcSDF from 'bitmap-sdf';
+import {Path, Project} from 'paper';
 
 class Client {
     private canvas: HTMLCanvasElement;
@@ -40,12 +41,12 @@ class Client {
 
 
         // const srcPath = "./resources/image/sample_diagonal_point.png";
-        const srcPath = "./resources/image/sample_800.png";
+        // const srcPath = "./resources/image/sample_800.png";
         // const srcPath = "./resources/image/sample_400_500.png";
         // const srcPath = "./resources/image/sample_1000_1000.png";
         // const srcPath = "./resources/image/sample_1080_1080.png";
         // const srcPath = "./resources/image/sample_5000_5000.png";
-        // const srcPath = "./resources/image/sample_inputs/input_00002.png";
+        const srcPath = "./resources/image/sample_inputs/input_00005.png";
 
         const image: HTMLImageElement = await this.loadImage(srcPath);
         const ctx = this.canvas.getContext('2d');
@@ -114,6 +115,15 @@ class Client {
         }
         this.drawContours(mycontours, ctx, fillPolygon)
 
+        let project = new Project(this.canvas)
+        let paperPath:paper.Path;
+        function paperPathPolygon(linearring: Array<Array<number>>): void {
+            paperPath = new Path(linearring);
+        }
+
+        this.drawContours(mycontours, ctx, paperPathPolygon)
+
+        console.log(paperPath)
         
         // // 얻은 path 안을 채우기
         const m2 = - mytarget+30
