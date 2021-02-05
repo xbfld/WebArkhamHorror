@@ -5,8 +5,10 @@
 
 import { contours } from 'd3-contour';
 import * as calcSDF from 'bitmap-sdf';
-// import * as potrace from 'potrace';
-let potrace = require('potrace');
+/*
+import * as potrace from 'potrace'; /*/
+let potrace = require('potrace'); //*/
+
 import * as jimp from 'jimp';
 
 class Client {
@@ -32,8 +34,8 @@ class Client {
 
     private async draw() {
         const targets0: number[] = []
-        const targets1 = [-30]
-        const targets2 = [-30, -1000]
+        const targets1 = [-10]
+        const targets2 = [-30, -50]
         const targets3 = [-15, -30, -45]
         const targets5 = [0, -10, -20, -30, -40]
         const targets30 = [
@@ -53,7 +55,7 @@ class Client {
         const ctx = this.canvas.getContext('2d');
 
 
-        const targets: Array<number> = targets1.map(x => x);
+        const targets: Array<number> = targets3.map(x => x);
         // const targets: Array<number> = [(image.width+image.height)/2]
 
         const maxAbsoluteValueOfTargets = Math.ceil(
@@ -78,25 +80,38 @@ class Client {
 
         jimp.read(srcPath, function () {
             let data = new Uint8ClampedArray(distance.length * 4)
+
+            const sortedTargets = targets.map((v,i)=>({value:v,index:i})).sort((a,b)=>a.value-b.value);
+
             for (let index = 0; index < distance.length; index++) {
                 const element = distance[index];
-                data[index * 4 + 0] = element > targets[0] ? 0 : 255
-                data[index * 4 + 1] = element > targets[0] ? 0 : 255
-                data[index * 4 + 2] = element > targets[0] ? 0 : 255
-                data[index * 4 + 3] = element > targets[0] ? 255 : 0
+                const threshold = sortedTargets.find(target=>element<target.value)
+                const newValue = threshold?threshold.index * 10 : 255
+                data[index * 4 + 0] = newValue;
+                data[index * 4 + 1] = newValue;
+                data[index * 4 + 2] = newValue;
+                data[index * 4 + 3] = 255;
 
             }
             let aa = new ImageData(data, width, height);
             ctx.clearRect(0, 0, width, height)
             // ctx.putImageData(aa, 0, 0)
             this.bitmap.data = Buffer.from(aa.data)
+            po.setParameters({blackOnWhite:false})
             ctx.clearRect(0, 0, width, height)
             ctx.drawImage(image, 0, 0)
-            po.loadImage(this, function () {
-                let p = new Path2D(po.getPathTag().slice(9))
+            po.loadImage(this,()=>{});
+            console.log(po)
+            let domparser = new DOMParser();
+            sortedTargets.forEach(target => {
+                po.setParameters({threshold:target.index*10})
+                
+                let d = domparser.parseFromString(po.getPathTag(), "text/xml").firstElementChild.getAttribute('d');
+                let p = new Path2D(d);
                 ctx.stroke(p)
                 console.log(po.getSVG())
-            })
+            });
+
         })
 
 
