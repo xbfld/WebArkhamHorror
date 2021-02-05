@@ -3,7 +3,7 @@
 // let d3 = require('d3-contour');
 // let sdf = require('bitmap-sdf');
 
-import { contours } from 'd3-contour';
+import {contours} from 'd3-contour';
 import * as calcSDF from 'bitmap-sdf';
 /*
 import * as potrace from 'potrace'; /*/
@@ -33,16 +33,16 @@ class Client {
     }
 
     private async draw() {
-        const targets0: number[] = []
-        const targets1 = [-10]
-        const targets2 = [-30, -50]
-        const targets3 = [-15, -30, -45]
-        const targets5 = [0, -10, -20, -30, -40]
+        const targets0: number[] = [];
+        const targets1 = [-10];
+        const targets2 = [-30, -50];
+        const targets3 = [-15, -30, -45];
+        const targets5 = [0, -10, -20, -30, -40];
         const targets30 = [
             0, -10, -20, -30, -40, -50, -60, -70, -80, -90,
             -3, -13, -23, -33, -43, -53, -63, -73, -83, -93,
             -6, -16, -26, -36, -46, -56, -66, -76, -86, -96,
-        ]
+        ];
         // const srcPath = "./resources/image/sample_diagonal_point.png";
         // const srcPath = "./resources/image/sample_800.png";
         // const srcPath = "./resources/image/sample_400_500.png";
@@ -64,7 +64,7 @@ class Client {
                 .reduce((acc, val) => Math.max(acc, val)));
         const margin = maxAbsoluteValueOfTargets * 0;
         const dimension = this.marginalDimension(margin, image);
-        const distance = this.createSDF(ctx, margin, image)
+        const distance = this.createSDF(ctx, margin, image);
         const contours = this.createContours(distance, targets, dimension);
 
         const [width, height] = this.marginalDimension(margin, image);
@@ -78,71 +78,67 @@ class Client {
         //     console.log(po.getSVG())
         // })
 
-        jimp.read(srcPath, function () {
-            let data = new Uint8ClampedArray(distance.length * 4)
+        let data = new Uint8ClampedArray(distance.length * 4);
 
-            const sortedTargets = targets.map((v,i)=>({value:v,index:i})).sort((a,b)=>a.value-b.value);
+        const sortedTargets = targets.map((v, i) => ({value: v, index: i})).sort((a, b) => a.value - b.value);
+        for (let index = 0; index < distance.length; index++) {
+            const element = distance[index];
+            const threshold = sortedTargets.find(target => element < target.value);
+            const newValue = threshold ? threshold.index + 1 : 255;
+            data[index * 4 + 0] = newValue;
+            data[index * 4 + 1] = newValue;
+            data[index * 4 + 2] = newValue;
+            data[index * 4 + 3] = threshold ? 255 : 0;
 
-            for (let index = 0; index < distance.length; index++) {
-                const element = distance[index];
-                const threshold = sortedTargets.find(target=>element<target.value)
-                const newValue = threshold?threshold.index * 10 : 255
-                data[index * 4 + 0] = newValue;
-                data[index * 4 + 1] = newValue;
-                data[index * 4 + 2] = newValue;
-                data[index * 4 + 3] = 255;
+        }
+        const jimpImage = await jimp.create(width,height);
+        jimpImage.bitmap.data = Buffer.from(data);
+        const tracer = new potrace.Potrace();
+        tracer.loadImage(jimpImage, () => {
 
-            }
-            let aa = new ImageData(data, width, height);
-            ctx.clearRect(0, 0, width, height)
-            // ctx.putImageData(aa, 0, 0)
-            this.bitmap.data = Buffer.from(aa.data)
-            po.setParameters({blackOnWhite:false})
-            ctx.clearRect(0, 0, width, height)
-            ctx.drawImage(image, 0, 0)
-            po.loadImage(this,()=>{});
-            console.log(po)
-            let domparser = new DOMParser();
-            sortedTargets.forEach(target => {
-                po.setParameters({threshold:target.index*10})
-                
-                let d = domparser.parseFromString(po.getPathTag(), "text/xml").firstElementChild.getAttribute('d');
-                let p = new Path2D(d);
-                ctx.stroke(p)
-                console.log(po.getSVG())
+            ctx.clearRect(0, 0, width, height);
+
+
+            const domparser = new DOMParser();
+            const paths = sortedTargets.map(target => {
+                tracer.setParameters({threshold: target.index});
+                const pathTag: string = tracer.getPathTag();
+                // const d = pathTag.slice(9);
+                const d = domparser.parseFromString(pathTag, "text/xml").firstElementChild.getAttribute('d');
+                return new Path2D(d);
             });
 
-        })
+            paths.forEach(p => ctx.stroke(p));
 
-
+        });
 
 
 
 
         // targetFunction(x) <= target 를 만족하는 x
         function binarySearch(start: number, end: number, epsilon: number, target: number, targetFunction: Function, depth: number = 0): number {
-            if (start + epsilon > end) { return start }
+            if (start + epsilon > end) {return start;}
             const mid = (start + end) / 2;
             const guessValue = targetFunction(mid);
-            console.log(depth, mid, guessValue)
+            console.log(depth, mid, guessValue);
             if (target < guessValue) {
                 end = mid;
             }
             else {
                 start = mid;
             }
-            return binarySearch(start, end, epsilon, target, targetFunction, depth + 1)
+            return binarySearch(start, end, epsilon, target, targetFunction, depth + 1);
         }
 
 
-        const polygonCounter = (target: number) => { return this.createContours(distance, [target], dimension)[0].coordinates.length }
+        const polygonCounter = (target: number) => {return this.createContours(distance, [target], dimension)[0].coordinates.length;};
 
         console.log(contours);
     }
 
     /**등고선을 그린다.*/
     private drawContours(contours: any, ctx: CanvasRenderingContext2D, drawer = this.drawLinearring) {
-        contours.forEach((contour: { value: number; coordinates: number[][][][]; }) => {
+        contours.forEach((contour: {value: number; coordinates: number[][][][];}) => {
 
             contour.coordinates.forEach((polygon: number[][][]) => {
                 //polygon은 linearring의 배열로 첫 요소는 가장 바깥 폐곡선이다
@@ -152,7 +148,7 @@ class Client {
                 // const firstPolygon = polygon[0]
                 // polygon = polygon.slice(1)
 
-                polygon = polygon.slice(0, 1)
+                polygon = polygon.slice(0, 1);
                 polygon.forEach((linearring: number[][]) => {
                     drawer(linearring, ctx, this.drawScale);
                 });
@@ -168,7 +164,7 @@ class Client {
     //effect: Draw a linear-ring on the CanvasRenderingContext2D
     private drawLinearring(linearring: Array<Array<number>>, ctx: CanvasRenderingContext2D, drawScale: number): void {
         ctx.save();
-        ctx.scale(1 / drawScale, 1 / drawScale)
+        ctx.scale(1 / drawScale, 1 / drawScale);
         ctx.beginPath();
         const last = linearring[linearring.length - 1];
         ctx.moveTo(last[0], last[1]);
@@ -184,7 +180,7 @@ class Client {
     private marginalDimension(margin: number, image: HTMLImageElement): [number, number] {
         const width = Math.ceil(image.width * this.drawScale + margin * 2);
         const height = Math.ceil(image.height * this.drawScale + margin * 2);
-        return [width, height]
+        return [width, height];
 
     }
 
@@ -215,12 +211,12 @@ class Client {
         // 따라서 거리 값을 온전히 얻고 싶다면 radius와 cutoff를 적절히 설정해야 한다.
         // radius는 적당히 큰 수로 그림에서 등고선까지 거리의 두배 보다 크면 된다.
         // cutoff는 0.5; [0,1] 사이의 값으로 radius의 기준이 된다.
-        const radius = margin * 16 + 10000
+        const radius = margin * 16 + 10000;
         const cutoff = 0.5;
 
         // values는 Float32Array로 할 것
         // Uint8ClampedArray일 경우 distance가 의도치 않은 손실 발생
-        let distance = calcSDF(values, { radius: radius, width: width, height: height, cutoff: cutoff });
+        let distance = calcSDF(values, {radius: radius, width: width, height: height, cutoff: cutoff});
 
         // [0,1]범위로 축소된 거리를 복원하는 함수
         let recoverDistance = (x: number) => (x - cutoff) * radius;
